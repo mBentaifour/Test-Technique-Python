@@ -22,12 +22,16 @@ pytest
 
 ## Choix d'implémentation
 
-- **Dépliage des quantités** : pour l'offre groupée, chaque unité est traitée séparément (4 × A + 1 × B devient une liste de 5 prix), puisque la règle mélange tous les produits d'une même catégorie.
-- **Formation des groupes** : l'énoncé ne précise pas comment former les tranches de 3. J'ai trié les prix par ordre décroissant puis découpé en groupes de 3, ce qui fait que le 3e élément de chaque groupe est automatiquement le moins cher. C'est la convention la plus courante pour ce type d'offre.
-- **Règles absentes** : si `volume_discounts` ou `bundle_categories` manque, la règle correspondante est simplement ignorée.
+- **Regroupement par article** : les lignes d'un même `id` sont fusionnées avant la remise volume (2 lignes de 3 × A comptent comme 6 × A). Un même `id` avec un prix ou une catégorie différents est refusé.
+- **Dépliage des quantités** : pour l'offre groupée, chaque unité est traitée séparément, puisque la règle mélange tous les produits d'une même catégorie.
+- **Formation des groupes** : l'énoncé ne précise pas comment former les tranches. Les prix sont triés par ordre décroissant puis découpés en groupes de N ; le dernier de chaque groupe (le moins cher) est offert. Ce découpage maximise la remise accordée au client (ex. 30, 20, 10, 10, 5, 5 → 15 € offerts). Si le métier voulait l'inverse, seul le tri serait à changer.
+- **Montants en `Decimal`** : tous les calculs sont faits en `decimal.Decimal` et arrondis au centime avec `ROUND_HALF_UP` (en float, `round(1.005, 2)` donne `1.0`). La fonction renvoie un `float` pour garder la signature de l'énoncé.
+- **Taille du pack paramétrable** : `rules["bundle_size"]` (3 par défaut) permet de gérer un « 4 pour 3 », etc.
+- **Validation des entrées** : champ manquant, quantité négative ou non entière, prix négatif, taux hors de [0, 1], seuil ≤ 0 ou `bundle_size` < 2 lèvent une `ValueError` / `TypeError` explicite.
+- **Règles absentes** : si `volume_discounts` ou `bundle_categories` manque, la règle correspondante est ignorée.
 
 ## Limites et pistes d'amélioration
 
-- Les prix sont manipulés en `float`. En production, j'utiliserais `decimal.Decimal` pour éviter les erreurs d'arrondi sur des montants.
-- Le dépliage des quantités donne une complexité en O(n log n) sur le nombre total d'unités. Pour de très grosses quantités, on pourrait regrouper par prix au lieu de créer une entrée par unité.
-- La taille du pack (3) est en dur ; elle pourrait devenir un paramètre de `rules` pour gérer d'autres offres (4 pour 3, etc.).
+- Le dépliage des quantités est en O(n log n) sur le nombre total d'unités. Pour de très grosses quantités, on pourrait raisonner par paliers de prix au lieu de créer une entrée par unité.
+- En production, les montants seraient plutôt stockés en centimes (entiers) ou en `Decimal` de bout en bout, y compris dans la valeur de retour.
+- L'ordre d'application des règles (volume puis pack) est fixe ; un moteur de règles permettrait de le configurer.
